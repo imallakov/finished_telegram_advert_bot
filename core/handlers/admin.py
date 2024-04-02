@@ -2,7 +2,7 @@ from aiogram import types, F, Router
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery
 
-from core.database.requests import delete_tariff, delete_chat, change_moderator_status
+from core.database.requests import delete_tariff, delete_chat, change_moderator_status, is_user_admin
 from core.fsm.admin import FSMAdmin
 from core.handlers.basic import cmd_start
 from core.keyboards.callbackdata import AdminCabinet
@@ -15,12 +15,19 @@ admin_router = Router()
 @admin_router.callback_query(AdminCabinet.filter(F.event == 'to_admin_cabinet'))
 @admin_router.message(F.text.lower() == "админка")
 async def cmd_adminka(message: types.Message | CallbackQuery):
-    if type(message) is types.Message:
-        if message.text == 'админка':
-            await message.delete()
-        await message.answer('С возвращение Босс!', reply_markup=await admin_cabinet_main())
+    check_message = message
+    if type(message) is CallbackQuery:
+        check_message = message.message
+    if await is_user_admin(user_id=check_message.chat.id):
+        if type(message) is types.Message:
+            if message.text == 'админка':
+                await message.delete()
+            await message.answer('С возвращение Босс!', reply_markup=await admin_cabinet_main())
+        else:
+            await message.message.edit_text('С возвращение Босс!', reply_markup=await admin_cabinet_main())
     else:
-        await message.message.edit_text('С возвращение Босс!', reply_markup=await admin_cabinet_main())
+        await message.delete()
+        await cmd_start(message=message, state=None)
 
 
 @admin_router.callback_query(AdminCabinet.filter(F.event == 'to_chats'))

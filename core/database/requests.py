@@ -210,6 +210,42 @@ async def add_to_user_balance_amount(user_id: int, amount: int) -> str:
         return 'error'
 
 
+async def is_user_admin(user_id: int) -> bool:
+    try:
+        async with async_session() as session:
+            result = await session.execute(
+                select(User)
+                .filter(User.id == user_id)
+            )
+            user = result.scalars().first()
+            if type(user) is not NoneType:
+                return user.is_admin
+            else:
+                return False
+    except exc.SQLAlchemyError as error:
+        await bot_send_error_message(
+            f'is_user_admin:\nuser_id={user_id}\nError: {error.__str__()}')
+        return False
+
+
+async def is_user_moderator(user_id: int) -> bool:
+    try:
+        async with async_session() as session:
+            result = await session.execute(
+                select(User)
+                .filter(User.id == user_id)
+            )
+            user = result.scalars().first()
+            if type(user) is not NoneType:
+                return user.is_moderator
+            else:
+                return False
+    except exc.SQLAlchemyError as error:
+        await bot_send_error_message(
+            f'is_user_moderator:\nuser_id={user_id}\nError: {error.__str__()}')
+        return False
+
+
 async def get_user(user_id: int) -> User | None:
     try:
         async with async_session() as session:
@@ -352,7 +388,7 @@ async def get_moderating_adverts() -> Advert | None:
 async def get_all_undeleted_adverts():
     try:
         async with async_session() as session:
-            query = select(Advert).filter_by(status="undeleted").order_by(
+            query = select(Advert).options(Advert.chat).filter_by(status="undeleted").order_by(
                 asc(Advert.posted_at))
             res = await session.execute(query)
             result = res.scalars().all()

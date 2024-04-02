@@ -5,7 +5,8 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery
 
 from core.database.requests import get_moderator_info, get_moderating_adverts, get_advert_info, approve_advert, \
-    decline_advert, get_moderating_question, get_all_undeleted_adverts, change_undeleted_status_to_done
+    decline_advert, get_moderating_question, get_all_undeleted_adverts, change_undeleted_status_to_done, \
+    is_user_moderator
 from core.fsm.advert import FSMAdvert
 from core.fsm.question import FSMQuestion
 from core.handlers.basic import cmd_start
@@ -108,7 +109,7 @@ async def moderating_new_orders(query: CallbackQuery):
     await query.answer()
     links: str = ""
     for advert in adverts:
-        links = links + f't.me/{advert.chat_id}/{advert.posted_message_id}\n'
+        links = links + f't.me/{advert.chat.username}/{advert.posted_message_id}\n'
     await query.message.edit_text(text=links, reply_markup=await deleting_undeleted_adverts())
     await cmd_moderator(message=query.message)
 
@@ -130,9 +131,13 @@ async def back_to_cmd_moderator(query: CallbackQuery):
 
 @moderator_router.message(F.text.lower() == "модерация")
 async def cmd_moderator(message: types.Message):
-    orders, questions, undeleted_adverts = await get_moderator_info()
-    await message.answer(f'РЕЖИМ МОДЕРАЦИИ!\n'
-                         f'Количество новых заявок: {orders}\n'
-                         f'Количество новых вопросов: {questions}\n'
-                         f'Количество не удаленных объявлений: {undeleted_adverts}',
-                         reply_markup=await moderator_menu(orders, questions, undeleted_adverts))
+    if await is_user_moderator(user_id=message.chat.id):
+        orders, questions, undeleted_adverts = await get_moderator_info()
+        await message.answer(f'РЕЖИМ МОДЕРАЦИИ!\n'
+                             f'Количество новых заявок: {orders}\n'
+                             f'Количество новых вопросов: {questions}\n'
+                             f'Количество не удаленных объявлений: {undeleted_adverts}',
+                             reply_markup=await moderator_menu(orders, questions, undeleted_adverts))
+    else:
+        await message.delete()
+        await cmd_start(message, None)
